@@ -1,8 +1,8 @@
-const firebaseConfig = {
-    apiKey: "AIzaSyYourRealKeyHere...",
-    authDomain: "dubai-family-call.firebaseapp.com",
-    projectId: "dubai-family-call",
-    storageBucket: "dubai-family-call.appspot.com",
-    messagingSenderId: "1234567890",
-    appId: "1:1234567890:web:abcdef"
-};
+{
+  "name": "Family Link Dubai",
+  "short_name": "FamilyCall",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0284c7"
+}
