@@ -6,12 +6,10 @@
     <title>Family Link - Direct Call</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        /* Using safe-area-inset ensures the app doesn't hide under the iPhone notch or Android nav bar */
-        body { background: #0f172a; color: #f8fafc; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; padding-bottom: env(safe-area-inset-bottom); }
-        .screen { flex: 1; display: none; flex-direction: column; padding: 20px; height: 100%; position: relative; }
+        body { background: #0f172a; color: #f8fafc; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+        .screen { flex: 1; display: none; flex-direction: column; padding: 15px; height: 100%; position: relative; }
         .active { display: flex; }
         
-        /* Login & Contacts */
         .container { max-width: 400px; margin: 20px auto; width: 100%; background: #1e293b; padding: 24px; border-radius: 16px; border: 1px solid #334155; }
         h1, h2 { color: #38bdf8; margin-bottom: 15px; text-align: center; }
         input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; margin-bottom: 15px; }
@@ -22,33 +20,40 @@
         .online-dot { height: 10px; width: 10px; background-color: #10b981; border-radius: 50%; display: inline-block; margin-right: 8px; }
         .call-btn { background: #10b981; width: auto; padding: 8px 16px; margin: 0; }
 
-        /* Incoming Call Alert */
         #incoming-alert { display: none; position: fixed; top: 40px; left: 50%; transform: translateX(-50%); background: #1e293b; border: 2px solid #10b981; padding: 20px; border-radius: 12px; z-index: 1000; text-align: center; width: 90%; max-width: 350px;}
         .alert-btns { display: flex; gap: 10px; margin-top: 15px; }
         .btn-accept { background: #10b981; flex: 1;}
         .btn-reject { background: #ef4444; flex: 1;}
 
-        /* Video Screen (Fullscreen) */
-        #video-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1; }
+        #call-screen {
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            background: #000;
+            padding: 15px env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+        #call-screen.active { display: flex; }
+
+        #callStatus { text-align: center; color: #38bdf8; font-size: 14px; font-weight: 600; padding: 8px; background: rgba(15, 23, 42, 0.8); border-radius: 8px; z-index: 10; margin-bottom: 10px; }
+
+        #video-container { 
+            position: relative; flex: 1; background: #000; border-radius: 16px; overflow: hidden; display: flex; justify-content: center; align-items: center; min-height: 0; 
+        }
+        
         #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
         
-        /* Floating Local Video */
-        #localVideo { position: absolute; top: 20px; right: 20px; width: 100px; height: 140px; object-fit: cover; border-radius: 12px; border: 2px solid #38bdf8; z-index: 2; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        #localVideo { 
+            position: absolute; bottom: 20px; right: 20px; width: 90px; height: 130px; object-fit: cover; border-radius: 12px; border: 2px solid #38bdf8; z-index: 5; box-shadow: 0 4px 12px rgba(0,0,0,0.6); 
+            transform: scaleX(-1); /* DEFAULT: MIRROR VIEW FOR FRONT CAMERA */
+        }
         
-        /* Status Text Floating at Top */
-        #callStatus { position: absolute; top: 20px; left: 20px; z-index: 2; color: white; text-shadow: 0px 2px 4px rgba(0,0,0,0.8); margin: 0; }
+        .call-controls { 
+            display: flex; justify-content: center; gap: 20px; align-items: center; padding: 15px 0 10px 0; z-index: 10; background: rgba(15, 23, 42, 0.9); border-radius: 16px; margin-top: 10px; flex-wrap: wrap;
+        }
         
-        /* Floating Call Controls Anchored to Bottom */
-        .call-controls { position: absolute; bottom: 40px; left: 0; width: 100%; display: flex; justify-content: center; gap: 30px; z-index: 3; padding: 0 20px; }
-        
-        /* Native-Style Circular Buttons */
-        .btn-control { width: 64px; height: 64px; border-radius: 50%; border: none; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,0.4); }
+        .btn-control { width: 54px; height: 54px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
         .btn-hangup { background: #ef4444; color: white; }
-        
-        /* Transparent White Native Style */
-        .btn-toggle { background: rgba(255, 255, 255, 0.2); color: white; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3); transition: all 0.3s; }
-        
-        /* Red when turned off */
+        .btn-toggle { background: rgba(255, 255, 255, 0.2); color: white; border: 1px solid rgba(255,255,255,0.3); }
         .btn-off { background: white; color: #ef4444; }
     </style>
 </head>
@@ -68,9 +73,7 @@
         <div class="container">
             <h2>Online Family</h2>
             <div style="text-align:center; color:#10b981; margin-bottom:15px;" id="my-name-display"></div>
-            <ul class="user-list" id="usersList">
-                <!-- Users will populate here -->
-            </ul>
+            <ul class="user-list" id="usersList"></ul>
             <button onclick="logout()" style="background: #334155; margin-top: 20px; font-size: 14px;">Switch User / Logout</button>
         </div>
     </div>
@@ -87,17 +90,18 @@
 
     <!-- SCREEN 3: VIDEO CALL -->
     <div id="call-screen" class="screen">
-        <h3 id="callStatus" style="text-align:center; color:#38bdf8; margin-bottom:10px;">Connecting...</h3>
+        <div id="callStatus">Connecting...</div>
         <div id="video-container">
+            <!-- Playsinline keeps the video playing when PiP is activated -->
             <video id="remoteVideo" autoplay playsinline></video>
             <video id="localVideo" autoplay playsinline muted></video>
         </div>
         
-        <!-- NEW CALL CONTROLS -->
         <div class="call-controls">
             <button class="btn-control btn-toggle" onclick="toggleMute()" id="muteBtn">🎙️</button>
-            <button class="btn-control btn-hangup" onclick="endCall()">📞</button>
+            <button class="btn-control btn-toggle" onclick="switchCamera()" id="flipBtn">🔄</button>
             <button class="btn-control btn-toggle" onclick="toggleVideo()" id="videoBtn">📹</button>
+            <button class="btn-control btn-hangup" onclick="endCall()">📞</button>
         </div>
     </div>
 
@@ -105,7 +109,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, query, where, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Your specific, real keys are injected below:
         const firebaseConfig = {
             apiKey: "AIzaSyCeGrH0Y_uWJQgkEqSZCme3jzRQooc_jU4",
             authDomain: "dubai-family-call.firebaseapp.com",
@@ -137,16 +140,15 @@
         let presenceInterval;
         const addedCandidates = new Set();
         
-        // Tracking states for new media buttons
         let isMuted = false;
         let isVideoOff = false;
+        let currentFacingMode = "user"; // Tracks front vs back camera
 
-        // AUTO-LOGIN CHECK (Runs instantly when page loads)
         window.onload = () => {
             const savedName = localStorage.getItem("familyCallUsername");
             if (savedName) {
                 document.getElementById("usernameInput").value = savedName;
-                login(); // Auto-start the login process
+                login();
             }
         };
 
@@ -154,9 +156,7 @@
             const name = document.getElementById("usernameInput").value.trim();
             if (!name) return alert("Please enter your name");
             
-            // Save username to the browser memory for next time
             localStorage.setItem("familyCallUsername", name);
-            
             currentUser = name.toLowerCase();
             document.getElementById("my-name-display").innerHTML = `<span class="online-dot"></span> Logged in as: <b>${name}</b>`;
             
@@ -173,22 +173,18 @@
             listenForIncomingCalls();
         };
 
-        // NEW LOGOUT FUNCTION
         window.logout = async () => {
-            localStorage.removeItem("familyCallUsername"); // Delete saved name
-            if (currentUser) {
-                await updateDoc(doc(db, "users", currentUser), { isOnline: false });
-            }
-            window.location.reload(); // Refresh app to start over
+            localStorage.removeItem("familyCallUsername");
+            if (currentUser) await updateDoc(doc(db, "users", currentUser), { isOnline: false });
+            window.location.reload(); 
         };
 
-        // NEW MEDIA TOGGLE FUNCTIONS
         window.toggleMute = () => {
             if (!localStream) return;
             const audioTrack = localStream.getAudioTracks()[0];
             if (audioTrack) {
                 isMuted = !isMuted;
-                audioTrack.enabled = !isMuted; // Disables the mic
+                audioTrack.enabled = !isMuted; 
                 const btn = document.getElementById("muteBtn");
                 btn.innerText = isMuted ? "🔇" : "🎙️";
                 btn.classList.toggle("btn-off", isMuted);
@@ -200,30 +196,75 @@
             const videoTrack = localStream.getVideoTracks()[0];
             if (videoTrack) {
                 isVideoOff = !isVideoOff;
-                videoTrack.enabled = !isVideoOff; // Disables the camera
+                videoTrack.enabled = !isVideoOff; 
                 const btn = document.getElementById("videoBtn");
                 btn.innerText = isVideoOff ? "🚫" : "📹";
                 btn.classList.toggle("btn-off", isVideoOff);
             }
         };
 
+        // NEW: FLIP CAMERA LOGIC
+        window.switchCamera = async () => {
+            if (!localStream || !pc) return;
+            
+            // Toggle front/back state
+            currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+            
+            // Toggle mirror effect (only mirror front camera)
+            const localVideo = document.getElementById("localVideo");
+            if (currentFacingMode === "user") {
+                localVideo.style.transform = "scaleX(-1)";
+            } else {
+                localVideo.style.transform = "scaleX(1)";
+            }
+
+            try {
+                // Request new camera stream
+                const newStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: currentFacingMode }
+                });
+                
+                const newVideoTrack = newStream.getVideoTracks()[0];
+                
+                // Replace the track in the live WebRTC connection so cousin sees the change
+                const sender = pc.getSenders().find(s => s.track.kind === 'video');
+                if (sender) await sender.replaceTrack(newVideoTrack);
+                
+                // Stop the old camera hardware to save battery
+                const oldVideoTrack = localStream.getVideoTracks()[0];
+                localStream.removeTrack(oldVideoTrack);
+                oldVideoTrack.stop();
+                
+                // Update local preview
+                localStream.addTrack(newVideoTrack);
+                localVideo.srcObject = localStream;
+                
+            } catch (e) {
+                console.error("Camera switch failed", e);
+                // Revert state if failed
+                currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; 
+            }
+        };
+
+        // NEW: BACKGROUND PICTURE-IN-PICTURE HANDLER
+        document.addEventListener("visibilitychange", () => {
+            const remoteVideo = document.getElementById("remoteVideo");
+            if (document.hidden && currentCallId && typeof remoteVideo.requestPictureInPicture === 'function') {
+                // When app minimizes, pop the remote video into a floating window to keep it alive
+                remoteVideo.requestPictureInPicture().catch(e => console.log("PiP blocked by OS:", e));
+            }
+        });
+
         function listenForUsers() {
             const usersRef = collection(db, "users");
             const q = query(usersRef, where("isOnline", "==", true));
-            
             onSnapshot(q, (snapshot) => {
                 const list = document.getElementById("usersList");
                 list.innerHTML = "";
-                
                 snapshot.forEach((doc) => {
                     const user = doc.data();
                     if (doc.id !== currentUser) { 
-                        list.innerHTML += `
-                            <li class="user-item">
-                                <div><span class="online-dot"></span>${user.name}</div>
-                                <button class="call-btn" onclick="initiateCall('${doc.id}')">Call</button>
-                            </li>
-                        `;
+                        list.innerHTML += `<li class="user-item"><div><span class="online-dot"></span>${user.name}</div><button class="call-btn" onclick="initiateCall('${doc.id}')">Call</button></li>`;
                     }
                 });
             });
@@ -254,23 +295,17 @@
             await getMedia();
             pc = new RTCPeerConnection(turnConfig);
             localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-            
             pc.ontrack = e => document.getElementById("remoteVideo").srcObject = e.streams[0];
 
             const callDocRef = doc(db, "calls", currentCallId);
             await setDoc(callDocRef, { caller: currentUser, receiver: targetUserId, callerCandidates: [], receiverCandidates: [] });
 
-            pc.onicecandidate = e => {
-                if(e.candidate) updateDoc(callDocRef, { callerCandidates: arrayUnion(e.candidate.toJSON()) });
-            };
+            pc.onicecandidate = e => { if(e.candidate) updateDoc(callDocRef, { callerCandidates: arrayUnion(e.candidate.toJSON()) }); };
 
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             await updateDoc(callDocRef, { offer: { type: offer.type, sdp: offer.sdp } });
-
-            await updateDoc(doc(db, "users", targetUserId), {
-                incomingCall: { callId: currentCallId, callerName: currentUser }
-            });
+            await updateDoc(doc(db, "users", targetUserId), { incomingCall: { callId: currentCallId, callerName: currentUser } });
 
             onSnapshot(callDocRef, async snapshot => {
                 const data = snapshot.data();
@@ -305,10 +340,7 @@
             pc.ontrack = e => document.getElementById("remoteVideo").srcObject = e.streams[0];
 
             const callDocRef = doc(db, "calls", currentCallId);
-            
-            pc.onicecandidate = e => {
-                if(e.candidate) updateDoc(callDocRef, { receiverCandidates: arrayUnion(e.candidate.toJSON()) });
-            };
+            pc.onicecandidate = e => { if(e.candidate) updateDoc(callDocRef, { receiverCandidates: arrayUnion(e.candidate.toJSON()) }); };
 
             const callData = (await getDoc(callDocRef)).data();
             await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
@@ -348,10 +380,14 @@
 
         async function getMedia() {
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                // Explicitly request front camera on start
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: currentFacingMode }, 
+                    audio: true 
+                });
                 document.getElementById("localVideo").srcObject = localStream;
             } catch (e) {
-                alert("Camera access denied. Please ensure no other apps are using it.");
+                alert("Camera access denied.");
             }
         }
     </script>
