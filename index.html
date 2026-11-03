@@ -44,7 +44,7 @@
         
         #localVideo { 
             position: absolute; bottom: 20px; right: 20px; width: 90px; height: 130px; object-fit: cover; border-radius: 12px; border: 2px solid #38bdf8; z-index: 5; box-shadow: 0 4px 12px rgba(0,0,0,0.6); 
-            transform: scaleX(-1); /* DEFAULT: MIRROR VIEW FOR FRONT CAMERA */
+            transform: scaleX(-1); 
         }
         
         .call-controls { 
@@ -73,6 +73,13 @@
         <div class="container">
             <h2>Online Family</h2>
             <div style="text-align:center; color:#10b981; margin-bottom:15px;" id="my-name-display"></div>
+            
+            <!-- NEW: Dubai Relay Toggle -->
+            <div style="background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #475569;">
+                <label for="relayToggle" style="color: #f8fafc; font-size: 14px;">Force Dubai Relay Mode</label>
+                <input type="checkbox" id="relayToggle" style="width: 20px; height: 20px; margin: 0; cursor: pointer;">
+            </div>
+
             <ul class="user-list" id="usersList"></ul>
             <button onclick="logout()" style="background: #334155; margin-top: 20px; font-size: 14px;">Switch User / Logout</button>
         </div>
@@ -92,7 +99,6 @@
     <div id="call-screen" class="screen">
         <div id="callStatus">Connecting...</div>
         <div id="video-container">
-            <!-- Playsinline keeps the video playing when PiP is activated -->
             <video id="remoteVideo" autoplay playsinline></video>
             <video id="localVideo" autoplay playsinline muted></video>
         </div>
@@ -118,17 +124,26 @@
             appId: "1:907162619235:web:0527ae164861e2e8cd5756",
             measurementId: "G-BV91TFC8W1"
         };
-        
-        const turnConfig = {
-            iceServers: [
-                {
-                    urls: "turns:standard.relay.metered.ca:443?transport=tcp",
-                    username: "2dab1921791bc88ce1916faa",
-                    credential: "iT9lOZ5XXZ1yoLpt"
-                }
-            ],
-            iceTransportPolicy: "relay"
-        };
+
+        function getTurnConfig() {
+            const forceRelay = document.getElementById("relayToggle").checked;
+            return {
+                iceServers: [
+                    {
+                        urls: [
+                            "stun:stun.l.google.com:19302",
+                            "stun:stun1.l.google.com:19302"
+                        ]
+                    },
+                    {
+                        urls: "turns:standard.relay.metered.ca:443?transport=tcp",
+                        username: "2dab1921791bc88ce1916faa",
+                        credential: "iT9lOZ5XXZ1yoLpt"
+                    }
+                ],
+                iceTransportPolicy: forceRelay ? "relay" : "all"
+            };
+        }
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -282,14 +297,13 @@
             document.getElementById("callStatus").innerText = `Calling ${targetUserId}...`;
 
             await getMedia();
-            pc = new RTCPeerConnection(turnConfig);
+            pc = new RTCPeerConnection(getTurnConfig());
             localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
             pc.ontrack = e => document.getElementById("remoteVideo").srcObject = e.streams[0];
 
             const callDocRef = doc(db, "calls", currentCallId);
             await setDoc(callDocRef, { caller: currentUser, receiver: targetUserId, callerCandidates: [], receiverCandidates: [] });
 
-            // PERFORMANCE FIX: Batch ICE candidates to prevent Firebase rate limiting
             let callerBatch = [];
             let callerTimer;
             pc.onicecandidate = e => { 
@@ -307,6 +321,8 @@
 
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
+            await limitBandwidth(pc);
+            
             await updateDoc(callDocRef, { offer: { type: offer.type, sdp: offer.sdp } });
             await updateDoc(doc(db, "users", targetUserId), { incomingCall: { callId: currentCallId, callerName: currentUser } });
 
@@ -338,13 +354,11 @@
             addedCandidates.clear();
             
             await getMedia();
-            pc = new RTCPeerConnection(turnConfig);
+            pc = new RTCPeerConnection(getTurnConfig());
             localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
             pc.ontrack = e => document.getElementById("remoteVideo").srcObject = e.streams[0];
 
             const callDocRef = doc(db, "calls", currentCallId);
-            
-            // PERFORMANCE FIX: Batch ICE candidates
             let receiverBatch = [];
             let receiverTimer;
             pc.onicecandidate = e => { 
@@ -365,6 +379,7 @@
             
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
+            await limitBandwidth(pc);
             
             await updateDoc(callDocRef, { answer: { type: answer.type, sdp: answer.sdp } });
             await updateDoc(doc(db, "users", currentUser), { incomingCall: null });
@@ -396,9 +411,25 @@
             window.location.reload();
         };
 
+        async function limitBandwidth(peerConnection) {
+            const senders = peerConnection.getSenders();
+            const videoSender = senders.find(s => s.track && s.track.kind === "video");
+            if (!videoSender) return;
+
+            try {
+                const parameters = videoSender.getParameters();
+                if (!parameters.encodings || parameters.encodings.length === 0) {
+                    parameters.encodings = [{}];
+                }
+                parameters.encodings[0].maxBitrate = 250000;
+                await videoSender.setParameters(parameters);
+            } catch (e) {
+                console.log("Bitrate cap not supported on this browser:", e);
+            }
+        }
+
         async function getMedia() {
             try {
-                // PERFORMANCE FIX: Force 480p initial load to prevent TCP buffer flooding
                 localStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: currentFacingMode,
