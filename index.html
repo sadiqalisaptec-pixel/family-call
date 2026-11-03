@@ -168,6 +168,24 @@
         // 4. INITIATE CALL (Caller)
         window.initiateCall = async (targetUserId) => {
             currentCallId = `${currentUser}_${targetUserId}_${Date.now()}`;
+
+            // --- NEW: TELEGRAM PUSH NOTIFICATION CODE ---
+          /*const telegramToken = "PASTE_YOUR_BOT_TOKEN_HERE";
+           const cousinChatId = "PASTE_YOUR_COUSINS_CHAT_ID_HERE";
+           const appLink = "https://sadiqalisaptec-pixel.github.io/family-call/"; // Your GitHub link
+    
+    fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            chat_id: cousinChatId,
+            text: `☎️ Incoming Video Call from ${currentUser}!`,
+            reply_markup: {
+                inline_keyboard: [[{ text: "📱 Tap to Answer", url: appLink }]]
+            }
+        })
+    }).catch(err => console.log("Push failed", err));  */
+    // --------------------------------------------
             
             document.getElementById("contacts-screen").classList.remove("active");
             document.getElementById("call-screen").classList.add("active");
