@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Family Link - Dubai Call</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: #0f172a; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .screen { flex: 1; display: none; flex-direction: column; justify-content: space-between; padding: 20px; height: 100%; }
+        .active { display: flex; }
+        .setup-container { max-width: 400px; margin: auto; width: 100%; text-align: center; background: #1e293b; padding: 28px; border-radius: 16px; border: 1px solid #334155; }
+        h1 { font-size: 22px; margin-bottom: 8px; color: #38bdf8; }
+        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
+        input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 16px; margin-bottom: 14px; text-align: center; }
+        .btn-main { width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; color: #fff; }
+        .btn-start { background: #0284c7; }
+        .btn-join { background: #10b981; }
+        #video-container { position: relative; flex: 1; background: #000; border-radius: 16px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
+        #localVideo { position: absolute; bottom: 16px; right: 16px; width: 110px; height: 155px; object-fit: cover; border-radius: 12px; border: 2px solid #38bdf8; background: #1e293b; }
+        .call-controls { display: flex; justify-content: center; gap: 20px; padding: 16px 0; }
+        .btn-control { width: 58px; height: 58px; border-radius: 50%; border: none; font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .btn-hangup { background: #ef4444; color: white; }
+        .btn-toggle { background: #334155; color: white; }
+        .status-badge { text-align: center; padding: 10px; font-weight: 600; color: #38bdf8; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <!-- SCREEN 1: LOBBY SCREEN -->
+    <div id="setup-screen" class="screen active">
+        <div class="setup-container">
+            <h1>Family Secure Call</h1>
+            <p>Enter a shared secret room word. Person 1 taps <b>Start Call</b>, Person 2 taps <b>Answer Call</b>.</p>
+            <input type="text" id="roomInput" placeholder="Room Name (e.g. DubaiHome)" value="DubaiHome">
+            <button class="btn-main btn-start" onclick="startCall(true)">1. Start Call (Caller)</button>
+            <button class="btn-main btn-join" onclick="startCall(false)">2. Answer Call (Receiver)</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 2: VIDEO CALL SCREEN -->
+    <div id="call-screen" class="screen">
+        <div class="status-badge" id="callStatus">Opening camera & microphone...</div>
+        <div id="video-container">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <video id="localVideo" autoplay playsinline muted></video>
+        </div>
+        <div class="call-controls">
+            <button class="btn-control btn-toggle" onclick="toggleMute()" id="muteBtn">🎙️</button>
+            <button class="btn-control btn-hangup" onclick="endCall()">📞</button>
+            <button class="btn-control btn-toggle" onclick="toggleVideo()" id="videoBtn">📹</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ========================================================
+        // PASTE YOUR STEP 1 FIREBASE KEYS BELOW:
+        // ========================================================
+        const firebaseConfig = {
+            apiKey: "PASTE_YOUR_API_KEY",
+            authDomain: "PASTE_YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "PASTE_YOUR_PROJECT_ID",
+            storageBucket: "PASTE_YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "PASTE_YOUR_SENDER_ID",
+            appId: "PASTE_YOUR_APP_ID"
+        };
+
+        // ========================================================
+        // PASTE YOUR STEP 2 METERED TURN KEYS BELOW:
+        // ========================================================
+        const turnConfig = {
+            iceServers: [
+                {
+                    // Port 443 over TCP disguises the call as normal HTTPS web traffic
+                    urls: [
+                        "turns:standard.relay.metered.ca:443?transport=tcp",
+                        "turn:standard.relay.metered.ca:443?transport=tcp"
+                    ],
+                    username: "PASTE_YOUR_METERED_USERNAME",
+                    credential: "PASTE_YOUR_METERED_PASSWORD"
+                }
+            ],
+            iceTransportPolicy: "relay" // Forces all traffic through Port 443 tunnel
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let pc;
+        let localStream;
+        let roomId;
+        const addedCandidates = new Set();
+
+        window.startCall = async (isCaller) => {
+            roomId = document.getElementById("roomInput").value.trim();
+            if (!roomId) return alert("Please enter a Room Name");
+
+            document.getElementById("setup-screen").classList.remove("active");
+            document.getElementById("call-screen").classList.add("active");
+
+            try {
+                // Capture HD Audio (Opus) and Video
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 24 } }
+                });
+                document.getElementById("localVideo").srcObject = localStream;
+
+                await setupWebRTC(isCaller);
+            } catch (err) {
+                alert("Please allow camera and microphone permissions: " + err.message);
+                window.location.reload();
+            }
+        };
+
+        async function setupWebRTC(isCaller) {
+            pc = new RTCPeerConnection(turnConfig);
+            const roomRef = doc(db, "calls", roomId);
+
+            // Push our camera/mic tracks into the encrypted tunnel
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+            // When cousin's video arrives through the tunnel, display it
+            pc.ontrack = event => {
+                document.getElementById("remoteVideo").srcObject = event.streams[0];
+                document.getElementById("callStatus").innerText = "Connected Securely via Port 443";
+            };
+
+            if (isCaller) {
+                document.getElementById("callStatus").innerText = "Waiting for cousin to tap 'Answer Call'...";
+
+                // Create clean room document first
+                await setDoc(roomRef, { offerCandidates: [], answerCandidates: [] });
+
+                // Whenever our phone finds a Port 443 path, save it to Firebase immediately
+                pc.onicecandidate = async event => {
+                    if (event.candidate) {
+                        await updateDoc(roomRef, {
+                            offerCandidates: arrayUnion(event.candidate.toJSON())
+                        });
+                    }
+                };
+
+                // Create and save our Call Offer
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                await updateDoc(roomRef, { offer: { type: offer.type, sdp: offer.sdp } });
+
+                // Listen for Cousin's Answer & Network Paths
+                onSnapshot(roomRef, async snapshot => {
+                    const data = snapshot.data();
+                    if (!data) return;
+
+                    if (!pc.currentRemoteDescription && data.answer) {
+                        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    }
+                    if (pc.currentRemoteDescription && data.answerCandidates) {
+                        for (const c of data.answerCandidates) {
+                            const key = JSON.stringify(c);
+                            if (!addedCandidates.has(key)) {
+                                addedCandidates.add(key);
+                                await pc.addIceCandidate(new RTCIceCandidate(c));
+                            }
+                        }
+                    }
+                });
+
+            } else {
+                // RECEIVER LOGIC
+                document.getElementById("callStatus").innerText = "Connecting to caller...";
+                const roomSnapshot = await getDoc(roomRef);
+
+                if (!roomSnapshot.exists() || !roomSnapshot.data().offer) {
+                    alert("No active call found in this room! Ask the caller to tap 'Start Call' first.");
+                    window.location.reload();
+                    return;
+                }
+
+                pc.onicecandidate = async event => {
+                    if (event.candidate) {
+                        await updateDoc(roomRef, {
+                            answerCandidates: arrayUnion(event.candidate.toJSON())
+                        });
+                    }
+                };
+
+                const roomData = roomSnapshot.data();
+                await pc.setRemoteDescription(new RTCSessionDescription(roomData.offer));
+
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                await updateDoc(roomRef, { answer: { type: answer.type, sdp: answer.sdp } });
+
+                // Listen for Caller's Network Paths
+                onSnapshot(roomRef, async snapshot => {
+                    const data = snapshot.data();
+                    if (data && data.offerCandidates) {
+                        for (const c of data.offerCandidates) {
+                            const key = JSON.stringify(c);
+                            if (!addedCandidates.has(key)) {
+                                addedCandidates.add(key);
+                                await pc.addIceCandidate(new RTCIceCandidate(c));
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        window.endCall = async () => {
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
+            if (pc) pc.close();
+            try { if (roomId) await deleteDoc(doc(db, "calls", roomId)); } catch (e) {}
+            window.location.reload();
+        };
+
+        window.toggleMute = () => {
+            const audioTrack = localStream.getAudioTracks()[0];
+            audioTrack.enabled = !audioTrack.enabled;
+            document.getElementById("muteBtn").style.background = audioTrack.enabled ? "#334155" : "#ef4444";
+        };
+
+        window.toggleVideo = () => {
+            const videoTrack = localStream.getVideoTracks()[0];
+            videoTrack.enabled = !videoTrack.enabled;
+            document.getElementById("videoBtn").style.background = videoTrack.enabled ? "#334155" : "#ef4444";
+        };
+    </script>
+</body>
+</html>
