@@ -1,0 +1,27 @@
+name: Build iOS IPA
+on: [workflow_dispatch]
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with: { node-version: '18' }
+      - name: Install Dependencies
+        run: npm install
+      - name: Sync iOS
+        run: npx cap sync ios
+      - name: Build Unsigned IPA
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          cd build/Release-iphoneos
+          mkdir Payload
+          mv App.app Payload/
+          zip -r app.ipa Payload
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: iOS-App
+          path: ios/App/build/Release-iphoneos/app.ipa
