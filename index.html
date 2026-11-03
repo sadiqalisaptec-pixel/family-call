@@ -74,7 +74,6 @@
             <h2>Online Family</h2>
             <div style="text-align:center; color:#10b981; margin-bottom:15px;" id="my-name-display"></div>
             
-            <!-- NEW: Dubai Relay Toggle -->
             <div style="background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #475569;">
                 <label for="relayToggle" style="color: #f8fafc; font-size: 14px;">Force Dubai Relay Mode</label>
                 <input type="checkbox" id="relayToggle" style="width: 20px; height: 20px; margin: 0; cursor: pointer;">
@@ -94,6 +93,10 @@
             <button class="btn-accept" onclick="acceptCall()">Answer</button>
         </div>
     </div>
+
+    <!-- AUDIO ELEMENTS -->
+    <audio id="ringtone" loop src="https://assets.mixkit.co/active_storage/sfx/2873/2873-preview.mp3" preload="auto"></audio>
+    <audio id="ringback" loop src="https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3" preload="auto"></audio>
 
     <!-- SCREEN 3: VIDEO CALL -->
     <div id="call-screen" class="screen">
@@ -278,12 +281,18 @@
             const myUserRef = doc(db, "users", currentUser);
             onSnapshot(myUserRef, (docSnap) => {
                 const data = docSnap.data();
+                const ringtone = document.getElementById("ringtone");
+                
                 if (data && data.incomingCall) {
                     currentCallId = data.incomingCall.callId;
                     document.getElementById("caller-name").innerText = `${data.incomingCall.callerName} is calling...`;
                     document.getElementById("incoming-alert").style.display = "block";
+                    
+                    ringtone.play().catch(e => console.log("Ringtone blocked:", e));
                 } else {
                     document.getElementById("incoming-alert").style.display = "none";
+                    ringtone.pause();
+                    ringtone.currentTime = 0;
                 }
             });
         }
@@ -295,6 +304,9 @@
             document.getElementById("contacts-screen").classList.remove("active");
             document.getElementById("call-screen").classList.add("active");
             document.getElementById("callStatus").innerText = `Calling ${targetUserId}...`;
+
+            const ringback = document.getElementById("ringback");
+            ringback.play().catch(e => console.log("Ringback blocked:", e));
 
             await getMedia();
             pc = new RTCPeerConnection(getTurnConfig());
@@ -327,10 +339,22 @@
             await updateDoc(doc(db, "users", targetUserId), { incomingCall: { callId: currentCallId, callerName: currentUser } });
 
             onSnapshot(callDocRef, async snapshot => {
+                if (!snapshot.exists()) {
+                    document.getElementById("ringback").pause();
+                    document.getElementById("ringback").currentTime = 0;
+                    if (localStream) localStream.getTracks().forEach(t => t.stop());
+                    if (pc) pc.close();
+                    window.location.reload();
+                    return;
+                }
+
                 const data = snapshot.data();
                 if (!data) return;
                 
                 if (data.answer && !pc.currentRemoteDescription) {
+                    document.getElementById("ringback").pause();
+                    document.getElementById("ringback").currentTime = 0;
+                    
                     await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
                     document.getElementById("callStatus").innerText = "Connected Securely";
                 }
@@ -352,6 +376,9 @@
             document.getElementById("contacts-screen").classList.remove("active");
             document.getElementById("call-screen").classList.add("active");
             addedCandidates.clear();
+            
+            document.getElementById("ringtone").pause();
+            document.getElementById("ringtone").currentTime = 0;
             
             await getMedia();
             pc = new RTCPeerConnection(getTurnConfig());
@@ -386,6 +413,13 @@
             document.getElementById("callStatus").innerText = "Connected Securely";
 
             onSnapshot(callDocRef, async snapshot => {
+                if (!snapshot.exists()) {
+                    if (localStream) localStream.getTracks().forEach(t => t.stop());
+                    if (pc) pc.close();
+                    window.location.reload();
+                    return;
+                }
+
                 const data = snapshot.data();
                 if (data && data.callerCandidates) {
                     for (const c of data.callerCandidates) {
@@ -402,9 +436,20 @@
         window.rejectCall = async () => {
             await updateDoc(doc(db, "users", currentUser), { incomingCall: null });
             document.getElementById("incoming-alert").style.display = "none";
+            
+            document.getElementById("ringtone").pause();
+            document.getElementById("ringtone").currentTime = 0;
+            
+            if (currentCallId) {
+                await deleteDoc(doc(db, "calls", currentCallId));
+                currentCallId = null;
+            }
         };
 
         window.endCall = async () => {
+            document.getElementById("ringback").pause();
+            document.getElementById("ringback").currentTime = 0;
+            
             if (localStream) localStream.getTracks().forEach(t => t.stop());
             if (pc) pc.close();
             if (currentCallId) await deleteDoc(doc(db, "calls", currentCallId));
