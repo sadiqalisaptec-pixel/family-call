@@ -31,9 +31,13 @@
         #video-container { position: relative; flex: 1; background: #000; border-radius: 16px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
         #localVideo { position: absolute; bottom: 16px; right: 16px; width: 100px; height: 140px; object-fit: cover; border-radius: 12px; border: 2px solid #38bdf8; }
+        
+        /* Call Controls */
         .call-controls { display: flex; justify-content: center; gap: 20px; padding: 16px 0; }
-        .btn-control { width: 58px; height: 58px; border-radius: 50%; border: none; font-size: 22px; cursor: pointer; }
+        .btn-control { width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .btn-hangup { background: #ef4444; color: white; }
+        .btn-toggle { background: #334155; color: white; transition: background 0.3s; }
+        .btn-off { background: #ef4444; }
     </style>
 </head>
 <body>
@@ -55,6 +59,7 @@
             <ul class="user-list" id="usersList">
                 <!-- Users will populate here -->
             </ul>
+            <button onclick="logout()" style="background: #334155; margin-top: 20px; font-size: 14px;">Switch User / Logout</button>
         </div>
     </div>
 
@@ -75,16 +80,20 @@
             <video id="remoteVideo" autoplay playsinline></video>
             <video id="localVideo" autoplay playsinline muted></video>
         </div>
+        
+        <!-- NEW CALL CONTROLS -->
         <div class="call-controls">
+            <button class="btn-control btn-toggle" onclick="toggleMute()" id="muteBtn">🎙️</button>
             <button class="btn-control btn-hangup" onclick="endCall()">📞</button>
+            <button class="btn-control btn-toggle" onclick="toggleVideo()" id="videoBtn">📹</button>
         </div>
     </div>
 
- <script type="module">
+    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        // NOTE: Added arrayUnion to the import list below
         import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, query, where, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // Your specific, real keys are injected below:
         const firebaseConfig = {
             apiKey: "AIzaSyCeGrH0Y_uWJQgkEqSZCme3jzRQooc_jU4",
             authDomain: "dubai-family-call.firebaseapp.com",
@@ -114,11 +123,27 @@
         let localStream;
         let currentCallId = null;
         let presenceInterval;
-        const addedCandidates = new Set(); // Tracks ICE candidates so we don't duplicate them
+        const addedCandidates = new Set();
+        
+        // Tracking states for new media buttons
+        let isMuted = false;
+        let isVideoOff = false;
+
+        // AUTO-LOGIN CHECK (Runs instantly when page loads)
+        window.onload = () => {
+            const savedName = localStorage.getItem("familyCallUsername");
+            if (savedName) {
+                document.getElementById("usernameInput").value = savedName;
+                login(); // Auto-start the login process
+            }
+        };
 
         window.login = async () => {
             const name = document.getElementById("usernameInput").value.trim();
             if (!name) return alert("Please enter your name");
+            
+            // Save username to the browser memory for next time
+            localStorage.setItem("familyCallUsername", name);
             
             currentUser = name.toLowerCase();
             document.getElementById("my-name-display").innerHTML = `<span class="online-dot"></span> Logged in as: <b>${name}</b>`;
@@ -134,6 +159,40 @@
 
             listenForUsers();
             listenForIncomingCalls();
+        };
+
+        // NEW LOGOUT FUNCTION
+        window.logout = async () => {
+            localStorage.removeItem("familyCallUsername"); // Delete saved name
+            if (currentUser) {
+                await updateDoc(doc(db, "users", currentUser), { isOnline: false });
+            }
+            window.location.reload(); // Refresh app to start over
+        };
+
+        // NEW MEDIA TOGGLE FUNCTIONS
+        window.toggleMute = () => {
+            if (!localStream) return;
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                isMuted = !isMuted;
+                audioTrack.enabled = !isMuted; // Disables the mic
+                const btn = document.getElementById("muteBtn");
+                btn.innerText = isMuted ? "🔇" : "🎙️";
+                btn.classList.toggle("btn-off", isMuted);
+            }
+        };
+
+        window.toggleVideo = () => {
+            if (!localStream) return;
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                isVideoOff = !isVideoOff;
+                videoTrack.enabled = !isVideoOff; // Disables the camera
+                const btn = document.getElementById("videoBtn");
+                btn.innerText = isVideoOff ? "🚫" : "📹";
+                btn.classList.toggle("btn-off", isVideoOff);
+            }
         };
 
         function listenForUsers() {
@@ -187,10 +246,8 @@
             pc.ontrack = e => document.getElementById("remoteVideo").srcObject = e.streams[0];
 
             const callDocRef = doc(db, "calls", currentCallId);
-            // Create the document with empty arrays ready for network coordinates
             await setDoc(callDocRef, { caller: currentUser, receiver: targetUserId, callerCandidates: [], receiverCandidates: [] });
 
-            // Push network coordinates using arrayUnion to avoid Firebase errors
             pc.onicecandidate = e => {
                 if(e.candidate) updateDoc(callDocRef, { callerCandidates: arrayUnion(e.candidate.toJSON()) });
             };
@@ -212,7 +269,6 @@
                     document.getElementById("callStatus").innerText = "Connected Securely";
                 }
 
-                // Process the receiver's coordinates so video can route
                 if (pc.currentRemoteDescription && data.receiverCandidates) {
                     for (const c of data.receiverCandidates) {
                         const key = JSON.stringify(c);
@@ -238,7 +294,6 @@
 
             const callDocRef = doc(db, "calls", currentCallId);
             
-            // Push network coordinates using arrayUnion
             pc.onicecandidate = e => {
                 if(e.candidate) updateDoc(callDocRef, { receiverCandidates: arrayUnion(e.candidate.toJSON()) });
             };
@@ -253,7 +308,6 @@
             await updateDoc(doc(db, "users", currentUser), { incomingCall: null });
             document.getElementById("callStatus").innerText = "Connected Securely";
 
-            // Process the caller's coordinates so video can route
             onSnapshot(callDocRef, async snapshot => {
                 const data = snapshot.data();
                 if (data && data.callerCandidates) {
