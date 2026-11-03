@@ -80,9 +80,10 @@
         </div>
     </div>
 
-    <script type="module">
+ <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        // NOTE: Added arrayUnion to the import list below
+        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, query, where, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCeGrH0Y_uWJQgkEqSZCme3jzRQooc_jU4",
@@ -113,6 +114,7 @@
         let localStream;
         let currentCallId = null;
         let presenceInterval;
+        const addedCandidates = new Set(); // Tracks ICE candidates so we don't duplicate them
 
         window.login = async () => {
             const name = document.getElementById("usernameInput").value.trim();
@@ -172,6 +174,7 @@
 
         window.initiateCall = async (targetUserId) => {
             currentCallId = `${currentUser}_${targetUserId}_${Date.now()}`;
+            addedCandidates.clear();
             
             document.getElementById("contacts-screen").classList.remove("active");
             document.getElementById("call-screen").classList.add("active");
@@ -184,10 +187,12 @@
             pc.ontrack = e => document.getElementById("remoteVideo").srcObject = e.streams[0];
 
             const callDocRef = doc(db, "calls", currentCallId);
-            await setDoc(callDocRef, { caller: currentUser, receiver: targetUserId });
+            // Create the document with empty arrays ready for network coordinates
+            await setDoc(callDocRef, { caller: currentUser, receiver: targetUserId, callerCandidates: [], receiverCandidates: [] });
 
+            // Push network coordinates using arrayUnion to avoid Firebase errors
             pc.onicecandidate = e => {
-                if(e.candidate) setDoc(collection(callDocRef, "callerCandidates"), e.candidate.toJSON());
+                if(e.candidate) updateDoc(callDocRef, { callerCandidates: arrayUnion(e.candidate.toJSON()) });
             };
 
             const offer = await pc.createOffer();
@@ -200,9 +205,22 @@
 
             onSnapshot(callDocRef, async snapshot => {
                 const data = snapshot.data();
-                if (data && data.answer && !pc.currentRemoteDescription) {
+                if (!data) return;
+                
+                if (data.answer && !pc.currentRemoteDescription) {
                     await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
                     document.getElementById("callStatus").innerText = "Connected Securely";
+                }
+
+                // Process the receiver's coordinates so video can route
+                if (pc.currentRemoteDescription && data.receiverCandidates) {
+                    for (const c of data.receiverCandidates) {
+                        const key = JSON.stringify(c);
+                        if (!addedCandidates.has(key)) {
+                            addedCandidates.add(key);
+                            await pc.addIceCandidate(new RTCIceCandidate(c));
+                        }
+                    }
                 }
             });
         };
@@ -211,6 +229,7 @@
             document.getElementById("incoming-alert").style.display = "none";
             document.getElementById("contacts-screen").classList.remove("active");
             document.getElementById("call-screen").classList.add("active");
+            addedCandidates.clear();
             
             await getMedia();
             pc = new RTCPeerConnection(turnConfig);
@@ -218,20 +237,35 @@
             pc.ontrack = e => document.getElementById("remoteVideo").srcObject = e.streams[0];
 
             const callDocRef = doc(db, "calls", currentCallId);
-            const callData = (await getDoc(callDocRef)).data();
-
+            
+            // Push network coordinates using arrayUnion
             pc.onicecandidate = e => {
-                if(e.candidate) setDoc(collection(callDocRef, "receiverCandidates"), e.candidate.toJSON());
+                if(e.candidate) updateDoc(callDocRef, { receiverCandidates: arrayUnion(e.candidate.toJSON()) });
             };
 
+            const callData = (await getDoc(callDocRef)).data();
             await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+            
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             
             await updateDoc(callDocRef, { answer: { type: answer.type, sdp: answer.sdp } });
-
             await updateDoc(doc(db, "users", currentUser), { incomingCall: null });
             document.getElementById("callStatus").innerText = "Connected Securely";
+
+            // Process the caller's coordinates so video can route
+            onSnapshot(callDocRef, async snapshot => {
+                const data = snapshot.data();
+                if (data && data.callerCandidates) {
+                    for (const c of data.callerCandidates) {
+                        const key = JSON.stringify(c);
+                        if (!addedCandidates.has(key)) {
+                            addedCandidates.add(key);
+                            await pc.addIceCandidate(new RTCIceCandidate(c));
+                        }
+                    }
+                }
+            });
         };
 
         window.rejectCall = async () => {
