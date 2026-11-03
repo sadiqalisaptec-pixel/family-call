@@ -142,7 +142,7 @@
         
         let isMuted = false;
         let isVideoOff = false;
-        let currentFacingMode = "user"; // Tracks front vs back camera
+        let currentFacingMode = "user";
 
         window.onload = () => {
             const savedName = localStorage.getItem("familyCallUsername");
@@ -203,54 +203,43 @@
             }
         };
 
-        // NEW: FLIP CAMERA LOGIC
         window.switchCamera = async () => {
             if (!localStream || !pc) return;
-            
-            // Toggle front/back state
             currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
             
-            // Toggle mirror effect (only mirror front camera)
             const localVideo = document.getElementById("localVideo");
-            if (currentFacingMode === "user") {
-                localVideo.style.transform = "scaleX(-1)";
-            } else {
-                localVideo.style.transform = "scaleX(1)";
-            }
+            localVideo.style.transform = currentFacingMode === "user" ? "scaleX(-1)" : "scaleX(1)";
 
             try {
-                // Request new camera stream
                 const newStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: currentFacingMode }
+                    video: { 
+                        facingMode: currentFacingMode,
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 24 }
+                    }
                 });
                 
                 const newVideoTrack = newStream.getVideoTracks()[0];
-                
-                // Replace the track in the live WebRTC connection so cousin sees the change
                 const sender = pc.getSenders().find(s => s.track.kind === 'video');
                 if (sender) await sender.replaceTrack(newVideoTrack);
                 
-                // Stop the old camera hardware to save battery
                 const oldVideoTrack = localStream.getVideoTracks()[0];
                 localStream.removeTrack(oldVideoTrack);
                 oldVideoTrack.stop();
                 
-                // Update local preview
                 localStream.addTrack(newVideoTrack);
                 localVideo.srcObject = localStream;
                 
             } catch (e) {
                 console.error("Camera switch failed", e);
-                // Revert state if failed
                 currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; 
             }
         };
 
-        // NEW: BACKGROUND PICTURE-IN-PICTURE HANDLER
         document.addEventListener("visibilitychange", () => {
             const remoteVideo = document.getElementById("remoteVideo");
             if (document.hidden && currentCallId && typeof remoteVideo.requestPictureInPicture === 'function') {
-                // When app minimizes, pop the remote video into a floating window to keep it alive
                 remoteVideo.requestPictureInPicture().catch(e => console.log("PiP blocked by OS:", e));
             }
         });
@@ -300,7 +289,21 @@
             const callDocRef = doc(db, "calls", currentCallId);
             await setDoc(callDocRef, { caller: currentUser, receiver: targetUserId, callerCandidates: [], receiverCandidates: [] });
 
-            pc.onicecandidate = e => { if(e.candidate) updateDoc(callDocRef, { callerCandidates: arrayUnion(e.candidate.toJSON()) }); };
+            // PERFORMANCE FIX: Batch ICE candidates to prevent Firebase rate limiting
+            let callerBatch = [];
+            let callerTimer;
+            pc.onicecandidate = e => { 
+                if (e.candidate) {
+                    callerBatch.push(e.candidate.toJSON());
+                    clearTimeout(callerTimer);
+                    callerTimer = setTimeout(() => {
+                        if (callerBatch.length > 0) {
+                            updateDoc(callDocRef, { callerCandidates: arrayUnion(...callerBatch) });
+                            callerBatch = [];
+                        }
+                    }, 500);
+                }
+            };
 
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
@@ -340,7 +343,22 @@
             pc.ontrack = e => document.getElementById("remoteVideo").srcObject = e.streams[0];
 
             const callDocRef = doc(db, "calls", currentCallId);
-            pc.onicecandidate = e => { if(e.candidate) updateDoc(callDocRef, { receiverCandidates: arrayUnion(e.candidate.toJSON()) }); };
+            
+            // PERFORMANCE FIX: Batch ICE candidates
+            let receiverBatch = [];
+            let receiverTimer;
+            pc.onicecandidate = e => { 
+                if (e.candidate) {
+                    receiverBatch.push(e.candidate.toJSON());
+                    clearTimeout(receiverTimer);
+                    receiverTimer = setTimeout(() => {
+                        if (receiverBatch.length > 0) {
+                            updateDoc(callDocRef, { receiverCandidates: arrayUnion(...receiverBatch) });
+                            receiverBatch = [];
+                        }
+                    }, 500);
+                }
+            };
 
             const callData = (await getDoc(callDocRef)).data();
             await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
@@ -380,10 +398,15 @@
 
         async function getMedia() {
             try {
-                // Explicitly request front camera on start
+                // PERFORMANCE FIX: Force 480p initial load to prevent TCP buffer flooding
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: currentFacingMode }, 
-                    audio: true 
+                    video: { 
+                        facingMode: currentFacingMode,
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 24 }
+                    }, 
+                    audio: { echoCancellation: true, noiseSuppression: true } 
                 });
                 document.getElementById("localVideo").srcObject = localStream;
             } catch (e) {
