@@ -84,20 +84,17 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ==========================================
-        // PASTE YOUR KEYS HERE (From Previous Steps)
-        // ==========================================
         const firebaseConfig = {
-          apiKey: "AIzaSyCeGrH0Y_uWJQgkEqSZCme3jzRQooc_jU4",
-          authDomain: "dubai-family-call.firebaseapp.com",
-          projectId: "dubai-family-call",
-          storageBucket: "dubai-family-call.firebasestorage.app",
-          messagingSenderId: "907162619235",
-          appId: "1:907162619235:web:0527ae164861e2e8cd5756",
-          measurementId: "G-BV91TFC8W1"
+            apiKey: "AIzaSyCeGrH0Y_uWJQgkEqSZCme3jzRQooc_jU4",
+            authDomain: "dubai-family-call.firebaseapp.com",
+            projectId: "dubai-family-call",
+            storageBucket: "dubai-family-call.firebasestorage.app",
+            messagingSenderId: "907162619235",
+            appId: "1:907162619235:web:0527ae164861e2e8cd5756",
+            measurementId: "G-BV91TFC8W1"
         };
         
-      const turnConfig = {
+        const turnConfig = {
             iceServers: [
                 {
                     urls: "turns:standard.relay.metered.ca:443?transport=tcp",
@@ -107,13 +104,8 @@
             ],
             iceTransportPolicy: "relay"
         };
-        const turnConfig = {
-            // YOUR METERED TURN CONFIG HERE
-            iceServers: [ { urls: "stun:stun.l.google.com:19302" } ] 
-        };
 
         const app = initializeApp(firebaseConfig);
-        
         const db = getFirestore(app);
 
         let currentUser = null;
@@ -122,7 +114,6 @@
         let currentCallId = null;
         let presenceInterval;
 
-        // 1. LOGIN & PRESENCE
         window.login = async () => {
             const name = document.getElementById("usernameInput").value.trim();
             if (!name) return alert("Please enter your name");
@@ -133,21 +124,18 @@
             document.getElementById("login-screen").classList.remove("active");
             document.getElementById("contacts-screen").classList.add("active");
 
-            // Update Presence in Firebase every 10 seconds
             const userRef = doc(db, "users", currentUser);
             const updatePresence = () => setDoc(userRef, { name: name, lastSeen: serverTimestamp(), isOnline: true }, { merge: true });
             
             await updatePresence();
-            presenceInterval = setInterval(updatePresence, 10000); // Heartbeat
+            presenceInterval = setInterval(updatePresence, 10000); 
 
             listenForUsers();
             listenForIncomingCalls();
         };
 
-        // 2. LISTEN FOR ONLINE USERS
         function listenForUsers() {
             const usersRef = collection(db, "users");
-            // Simple query: Get everyone marked online
             const q = query(usersRef, where("isOnline", "==", true));
             
             onSnapshot(q, (snapshot) => {
@@ -156,7 +144,7 @@
                 
                 snapshot.forEach((doc) => {
                     const user = doc.data();
-                    if (doc.id !== currentUser) { // Don't show myself
+                    if (doc.id !== currentUser) { 
                         list.innerHTML += `
                             <li class="user-item">
                                 <div><span class="online-dot"></span>${user.name}</div>
@@ -168,7 +156,6 @@
             });
         }
 
-        // 3. LISTEN FOR INCOMING CALLS
         function listenForIncomingCalls() {
             const myUserRef = doc(db, "users", currentUser);
             onSnapshot(myUserRef, (docSnap) => {
@@ -183,27 +170,8 @@
             });
         }
 
-        // 4. INITIATE CALL (Caller)
         window.initiateCall = async (targetUserId) => {
             currentCallId = `${currentUser}_${targetUserId}_${Date.now()}`;
-
-            // --- NEW: TELEGRAM PUSH NOTIFICATION CODE ---
-          /*const telegramToken = "PASTE_YOUR_BOT_TOKEN_HERE";
-           const cousinChatId = "PASTE_YOUR_COUSINS_CHAT_ID_HERE";
-           const appLink = "https://sadiqalisaptec-pixel.github.io/family-call/"; // Your GitHub link
-    
-    fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            chat_id: cousinChatId,
-            text: `☎️ Incoming Video Call from ${currentUser}!`,
-            reply_markup: {
-                inline_keyboard: [[{ text: "📱 Tap to Answer", url: appLink }]]
-            }
-        })
-    }).catch(err => console.log("Push failed", err));  */
-    // --------------------------------------------
             
             document.getElementById("contacts-screen").classList.remove("active");
             document.getElementById("call-screen").classList.add("active");
@@ -218,7 +186,6 @@
             const callDocRef = doc(db, "calls", currentCallId);
             await setDoc(callDocRef, { caller: currentUser, receiver: targetUserId });
 
-            // Send Ice Candidates
             pc.onicecandidate = e => {
                 if(e.candidate) setDoc(collection(callDocRef, "callerCandidates"), e.candidate.toJSON());
             };
@@ -227,12 +194,10 @@
             await pc.setLocalDescription(offer);
             await updateDoc(callDocRef, { offer: { type: offer.type, sdp: offer.sdp } });
 
-            // Notify Receiver
             await updateDoc(doc(db, "users", targetUserId), {
                 incomingCall: { callId: currentCallId, callerName: currentUser }
             });
 
-            // Listen for Answer
             onSnapshot(callDocRef, async snapshot => {
                 const data = snapshot.data();
                 if (data && data.answer && !pc.currentRemoteDescription) {
@@ -242,7 +207,6 @@
             });
         };
 
-        // 5. ACCEPT CALL (Receiver)
         window.acceptCall = async () => {
             document.getElementById("incoming-alert").style.display = "none";
             document.getElementById("contacts-screen").classList.remove("active");
@@ -266,7 +230,6 @@
             
             await updateDoc(callDocRef, { answer: { type: answer.type, sdp: answer.sdp } });
 
-            // Clear incoming call flag
             await updateDoc(doc(db, "users", currentUser), { incomingCall: null });
             document.getElementById("callStatus").innerText = "Connected Securely";
         };
@@ -288,7 +251,7 @@
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById("localVideo").srcObject = localStream;
             } catch (e) {
-                alert("Camera access denied");
+                alert("Camera access denied. Please ensure no other apps are using it.");
             }
         }
     </script>
