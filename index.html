@@ -87,15 +87,21 @@
         // ==========================================
         // PASTE YOUR KEYS HERE (From Previous Steps)
         // ==========================================
-        const firebaseConfig = {
-             // YOUR FIREBASE CONFIG HERE
-        };
+      const firebaseConfig = {
+        apiKey: "AIzaSyYourRealKeyHere...",
+        authDomain: "dubai-family-call.firebaseapp.com",
+        projectId: "dubai-family-call",
+        storageBucket: "dubai-family-call.appspot.com",
+        messagingSenderId: "1234567890",
+        appId: "1:1234567890:web:abcdef"
+          };
         const turnConfig = {
             // YOUR METERED TURN CONFIG HERE
             iceServers: [ { urls: "stun:stun.l.google.com:19302" } ] 
         };
 
         const app = initializeApp(firebaseConfig);
+        
         const db = getFirestore(app);
 
         let currentUser = null;
