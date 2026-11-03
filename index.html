@@ -87,14 +87,26 @@
         // ==========================================
         // PASTE YOUR KEYS HERE (From Previous Steps)
         // ==========================================
-      const firebaseConfig = {
-        apiKey: "AIzaSyYourRealKeyHere...",
-        authDomain: "dubai-family-call.firebaseapp.com",
-        projectId: "dubai-family-call",
-        storageBucket: "dubai-family-call.appspot.com",
-        messagingSenderId: "1234567890",
-        appId: "1:1234567890:web:abcdef"
-          };
+        const firebaseConfig = {
+          apiKey: "AIzaSyCeGrH0Y_uWJQgkEqSZCme3jzRQooc_jU4",
+          authDomain: "dubai-family-call.firebaseapp.com",
+          projectId: "dubai-family-call",
+          storageBucket: "dubai-family-call.firebasestorage.app",
+          messagingSenderId: "907162619235",
+          appId: "1:907162619235:web:0527ae164861e2e8cd5756",
+          measurementId: "G-BV91TFC8W1"
+        };
+        
+        const turnConfig = {
+            iceServers: [
+                {
+                    urls: "turns:standard.relay.metered.ca:443?transport=tcp",
+                    username: "YOUR_REAL_METERED_USERNAME",
+                    credential: "YOUR_REAL_METERED_PASSWORD"
+                }
+            ],
+            iceTransportPolicy: "relay"
+        };
         const turnConfig = {
             // YOUR METERED TURN CONFIG HERE
             iceServers: [ { urls: "stun:stun.l.google.com:19302" } ] 
