@@ -3,73 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Family Link - Direct Call</title>
+    <title>Family Link - Hybrid Messenger & Call</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background: #0b141a; color: #e9edef; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-        .screen { flex: 1; display: none; flex-direction: column; padding: 15px; height: 100%; position: relative; overflow-y: auto; }
+        .screen { flex: 1; display: none; flex-direction: column; height: 100%; position: relative; overflow: hidden; }
         .active { display: flex; }
-        
-        .container { max-width: 420px; margin: 10px auto; width: 100%; background: #111b21; padding: 20px; border-radius: 16px; border: 1px solid #222e35; }
-        h1, h2 { color: #25D366; margin-bottom: 15px; text-align: center; }
-        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #2a3942; background: #202c33; color: #fff; margin-bottom: 12px; outline: none; }
-        input:focus, select:focus { border-color: #25D366; }
-        button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #25D366; color: #111b21; font-weight: bold; cursor: pointer; }
-        
-        .settings-card { background: #202c33; padding: 10px 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #2a3942; }
-        .settings-row { display: flex; align-items: center; justify-content: space-between; }
-        
-        .user-list { list-style: none; margin-top: 10px; max-height: 260px; overflow-y: auto; }
-        .user-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; background: transparent; border-bottom: 1px solid #222e35; }
-        .online-dot { height: 10px; width: 10px; background-color: #00a884; border-radius: 50%; display: inline-block; margin-right: 6px; }
-        
-        /* WhatsApp Style Action Buttons */
-        .call-actions { display: flex; gap: 12px; }
-        .btn-icon-action { background: #202c33; color: #00a884; font-size: 20px; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #2a3942; }
-        .btn-icon-action:active { background: #2a3942; }
 
-        /* Incoming Call Alert */
-        #incoming-alert { display: none; position: fixed; top: 30px; left: 50%; transform: translateX(-50%); background: #202c33; border: 2px solid #25D366; padding: 20px; border-radius: 16px; z-index: 1000; text-align: center; width: 92%; max-width: 360px; box-shadow: 0 12px 30px rgba(0,0,0,0.7); }
+        /* Login Container */
+        .login-box { max-width: 380px; margin: auto; width: 90%; background: #111b21; padding: 26px; border-radius: 16px; border: 1px solid #222e35; text-align: center; }
+        h1 { color: #25D366; font-size: 24px; margin-bottom: 8px; }
+        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #2a3942; background: #202c33; color: #fff; margin-bottom: 12px; outline: none; font-size: 14px; }
+        input:focus, select:focus { border-color: #25D366; }
+        button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #25D366; color: #111b21; font-weight: bold; cursor: pointer; font-size: 14px; }
+
+        /* App Top Header & Tabs */
+        .app-header { background: #202c33; padding: 14px 16px 0 16px; border-bottom: 1px solid #2a3942; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .header-title { font-size: 20px; font-weight: 700; color: #e9edef; }
+        .user-pill { font-size: 13px; color: #00a884; display: flex; align-items: center; gap: 6px; background: #111b21; padding: 5px 10px; border-radius: 20px; }
+        .tabs-bar { display: flex; }
+        .tab-btn { flex: 1; background: transparent; color: #8696a0; border: none; border-bottom: 3px solid transparent; border-radius: 0; padding: 10px 0; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .tab-btn.active-tab { color: #00a884; border-bottom-color: #00a884; }
+
+        /* Tab Content Views */
+        .tab-view { flex: 1; display: none; flex-direction: column; overflow-y: auto; padding: 10px 14px; }
+        .tab-view.active-view { display: flex; }
+
+        /* Contacts & Call Logs List */
+        .list-container { list-style: none; }
+        .user-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 6px; border-bottom: 1px solid #222e35; }
+        .user-info { display: flex; align-items: center; flex: 1; cursor: pointer; }
+        .avatar-circle { width: 46px; height: 46px; border-radius: 50%; background: #202c33; border: 1px solid #2a3942; display: flex; justify-content: center; align-items: center; font-size: 20px; margin-right: 12px; position: relative; }
+        .online-dot { height: 10px; width: 10px; background-color: #00a884; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .call-actions { display: flex; gap: 8px; }
+        .btn-icon-action { background: #202c33; color: #00a884; font-size: 18px; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #2a3942; }
+
+        /* Settings Cards */
+        .settings-card { background: #202c33; padding: 12px 14px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #2a3942; }
+        .settings-row { display: flex; align-items: center; justify-content: space-between; }
+
+        /* Direct Persistent 1-to-1 Chat Screen */
+        #direct-chat-screen { background: #0b141a; }
+        .chat-top-bar { background: #202c33; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2a3942; }
+        .chat-back-btn { background: transparent; color: #e9edef; width: auto; padding: 4px 10px 4px 0; font-size: 20px; }
+        #direct-chat-messages { flex: 1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .direct-input-bar { display: flex; padding: 10px; background: #202c33; align-items: center; gap: 8px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+        .direct-input-bar input { margin: 0; border-radius: 22px; flex: 1; background: #2a3942; border: none; padding: 12px 16px; }
+        .direct-input-bar button { width: 44px; height: 44px; border-radius: 50%; padding: 0; background: #00a884; color: #fff; font-size: 18px; }
+
+        /* Shared Message Bubbles */
+        .msg-bubble { max-width: 78%; padding: 8px 12px; border-radius: 12px; font-size: 14px; line-height: 1.4; word-wrap: break-word; position: relative; }
+        .msg-sent { background: #005c4b; color: #e9edef; align-self: flex-end; border-bottom-right-radius: 3px; }
+        .msg-recv { background: #202c33; color: #e9edef; align-self: flex-start; border-bottom-left-radius: 3px; border: 1px solid #2a3942; }
+        .msg-time { display: block; font-size: 10px; color: #8696a0; text-align: right; margin-top: 3px; }
+
+        /* Incoming Call Modal */
+        #incoming-alert { display: none; position: fixed; top: 25px; left: 50%; transform: translateX(-50%); background: #202c33; border: 2px solid #25D366; padding: 20px; border-radius: 16px; z-index: 2000; text-align: center; width: 92%; max-width: 360px; box-shadow: 0 12px 35px rgba(0,0,0,0.8); }
         .alert-btns { display: flex; gap: 12px; margin-top: 15px; }
         .btn-accept { background: #25D366; color: #111b21; flex: 1; }
         .btn-reject { background: #ef4444; color: white; flex: 1; }
 
-        /* Video & Audio Call Screen */
-        #call-screen { background: #000; padding: 0; justify-content: flex-end; overflow: hidden; }
-        
+        /* Call Screen */
+        #call-screen { background: #000; padding: 0; justify-content: flex-end; }
         #call-header { position: absolute; top: 0; left: 0; width: 100%; padding: 18px env(safe-area-inset-right) 15px env(safe-area-inset-left); background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); z-index: 10; display: flex; flex-direction: column; align-items: center; }
         #callStatus { color: #fff; font-size: 18px; font-weight: 600; }
         #callTimer { color: #25D366; font-size: 14px; margin-top: 4px; display: none; font-weight: bold; }
         #audioOutputBadge { color: #8696a0; font-size: 12px; margin-top: 3px; }
 
-        /* Floating Chat Toast Notification */
-        #chat-toast { display: none; position: absolute; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0, 92, 75, 0.95); color: #fff; padding: 10px 16px; border-radius: 20px; font-size: 14px; z-index: 30; max-width: 85%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; border: 1px solid #25D366; }
+        #chat-toast { display: none; position: fixed; top: 75px; left: 50%; transform: translateX(-50%); background: rgba(0, 92, 75, 0.95); color: #fff; padding: 10px 18px; border-radius: 20px; font-size: 13px; z-index: 1500; max-width: 88%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; border: 1px solid #25D366; }
 
         #video-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111b21; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* Audio Only Avatar Placeholder */
         #audio-avatar { display: none; width: 130px; height: 130px; border-radius: 50%; background: #202c33; border: 3px solid #00a884; color: #8696a0; font-size: 64px; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(0, 168, 132, 0.3); }
-        
         #localVideo { position: absolute; bottom: 115px; right: 16px; width: 95px; height: 135px; object-fit: cover; border-radius: 12px; border: 2px solid #25D366; z-index: 5; box-shadow: 0 4px 12px rgba(0,0,0,0.6); transform: scaleX(-1); }
-        
-        .call-controls { display: flex; justify-content: space-evenly; align-items: center; padding: 20px 10px calc(15px + env(safe-area-inset-bottom)) 10px; z-index: 10; background: linear-gradient(to top, rgba(0,0,0,0.92), transparent); width: 100%; }
-        
-        .btn-control { position: relative; width: 50px; height: 50px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4); background: rgba(255, 255, 255, 0.18); color: white; backdrop-filter: blur(5px); }
+
+        .call-controls { display: flex; justify-content: space-evenly; align-items: center; padding: 20px 10px calc(16px + env(safe-area-inset-bottom)) 10px; z-index: 10; background: linear-gradient(to top, rgba(0,0,0,0.92), transparent); width: 100%; }
+        .btn-control { position: relative; width: 50px; height: 50px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.18); color: white; backdrop-filter: blur(5px); }
         .btn-hangup { background: #ef4444; color: white; width: 58px; height: 58px; font-size: 24px; }
         .btn-off { background: #fff; color: #111b21; }
         .btn-speaker-active { background: #25D366; color: #111b21; }
-
-        /* Unread Chat Badge */
         #chatBadge { display: none; position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px; border-radius: 50%; align-items: center; justify-content: center; border: 2px solid #000; }
-        
+
         /* In-Call Chat Overlay */
-        #chat-overlay { display: none; position: absolute; bottom: 100px; left: 12px; right: 12px; height: 260px; background: rgba(17, 27, 33, 0.92); backdrop-filter: blur(10px); border-radius: 16px; border: 1px solid #2a3942; flex-direction: column; z-index: 20; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+        #chat-overlay { display: none; position: absolute; bottom: 100px; left: 12px; right: 12px; height: 260px; background: rgba(17, 27, 33, 0.94); backdrop-filter: blur(10px); border-radius: 16px; border: 1px solid #2a3942; flex-direction: column; z-index: 20; overflow: hidden; }
         #chat-header { padding: 8px 14px; background: #202c33; font-size: 13px; font-weight: bold; color: #25D366; display: flex; justify-content: space-between; align-items: center; }
         #chat-messages { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        .msg-bubble { max-width: 80%; padding: 8px 12px; border-radius: 12px; font-size: 14px; word-wrap: break-word; }
-        .msg-sent { background: #005c4b; color: #e9edef; align-self: flex-end; border-bottom-right-radius: 4px; }
-        .msg-recv { background: #202c33; color: #e9edef; align-self: flex-start; border-bottom-left-radius: 4px; }
         #chat-input-area { display: flex; padding: 8px; background: #202c33; align-items: center; }
         #chat-input-area input { margin: 0; border-radius: 20px; padding: 10px 14px; flex: 1; background: #2a3942; border: none; }
         #chat-input-area button { width: 40px; height: 40px; border-radius: 50%; padding: 0; margin-left: 8px; background: #00a884; color: #fff; }
@@ -77,54 +96,101 @@
 </head>
 <body>
 
+    <!-- GLOBAL NOTIFICATION TOAST -->
+    <div id="chat-toast">💬 New message</div>
+
     <!-- SCREEN 1: LOGIN -->
     <div id="login-screen" class="screen active">
-        <div class="container" style="margin-top: 60px;">
-            <h1 style="color: white; font-size: 24px;">Family Link</h1>
-            <p style="text-align: center; color: #8696a0; font-size: 14px; margin-bottom: 20px;">Direct Audio, Video & Chat</p>
+        <div class="login-box">
+            <h1>Family Link</h1>
+            <p style="color: #8696a0; font-size: 13px; margin-bottom: 20px;">Full Hybrid Chat, Audio & Video Calling</p>
             <input type="text" id="usernameInput" placeholder="Enter your name (e.g., Sadiq)">
             <button onclick="login()">Agree and Continue</button>
         </div>
     </div>
 
-    <!-- SCREEN 2: CONTACTS -->
+    <!-- SCREEN 2: MAIN WHATSAPP 3-TAB HUB -->
     <div id="contacts-screen" class="screen">
-        <div class="container">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 style="color: white; margin: 0; font-size: 20px;">Family Contacts</h2>
-                <div style="color:#00a884; font-size: 13px;" id="my-name-display"></div>
+        <div class="app-header">
+            <div class="header-top">
+                <div class="header-title">Family Link</div>
+                <div class="user-pill" id="my-name-display"></div>
             </div>
-            
-            <!-- Force Dubai Relay Toggle -->
-            <div class="settings-card settings-row">
-                <label for="relayToggle" style="color: #e9edef; font-size: 13px;">Force Dubai Relay Mode</label>
-                <input type="checkbox" id="relayToggle" style="width: 18px; height: 18px; margin: 0; cursor: pointer; accent-color: #00a884;">
+            <div class="tabs-bar">
+                <button class="tab-btn active-tab" id="tabBtnChats" onclick="switchTab('chats')">💬 CHATS</button>
+                <button class="tab-btn" id="tabBtnCalls" onclick="switchTab('calls')">📞 CALLS</button>
+                <button class="tab-btn" id="tabBtnSettings" onclick="switchTab('settings')">⚙️ SETTINGS</button>
             </div>
+        </div>
 
-            <!-- Background Keep-Alive Mode -->
+        <!-- TAB 1: CHATS & CONTACTS -->
+        <div id="tab-chats" class="tab-view active-view">
+            <ul class="list-container" id="usersList"></ul>
+        </div>
+
+        <!-- TAB 2: CALL HISTORY LOGS -->
+        <div id="tab-calls" class="tab-view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <small style="color:#8696a0;">Recent Voice & Video Calls</small>
+                <button onclick="clearCallLogs()" style="width:auto; padding:4px 10px; background:#202c33; color:#8696a0; font-size:11px;">Clear</button>
+            </div>
+            <ul class="list-container" id="callLogsList"></ul>
+        </div>
+
+        <!-- TAB 3: SETTINGS -->
+        <div id="tab-settings" class="tab-view">
             <div class="settings-card settings-row">
                 <div>
-                    <label for="keepAliveToggle" style="color: #e9edef; font-size: 13px; display: block;">Background Ring Protection</label>
-                    <small style="color: #8696a0; font-size: 11px;">Keeps app awake when minimized or screen locked</small>
+                    <label for="relayToggle" style="color: #e9edef; font-size: 14px; font-weight: 600; display: block;">Force Dubai Relay Mode</label>
+                    <small style="color: #8696a0; font-size: 11px;">Routes call over TCP Port 443 TURN server</small>
                 </div>
-                <input type="checkbox" id="keepAliveToggle" checked onchange="toggleKeepAlive()" style="width: 18px; height: 18px; margin: 0; cursor: pointer; accent-color: #00a884;">
+                <input type="checkbox" id="relayToggle" style="width: 20px; height: 20px; margin: 0; accent-color: #00a884;">
             </div>
 
-            <!-- Custom Ringtone Selector -->
+            <div class="settings-card settings-row">
+                <div>
+                    <label for="keepAliveToggle" style="color: #e9edef; font-size: 14px; font-weight: 600; display: block;">Background Ring Protection</label>
+                    <small style="color: #8696a0; font-size: 11px;">Keeps WebView awake when minimized</small>
+                </div>
+                <input type="checkbox" id="keepAliveToggle" checked onchange="toggleKeepAlive()" style="width: 20px; height: 20px; margin: 0; accent-color: #00a884;">
+            </div>
+
             <div class="settings-card">
-                <label style="color: #25D366; font-size: 13px; font-weight: bold; display: block; margin-bottom: 6px;">🎵 Custom Ringtone / Caller Tune</label>
-                <select id="ringtoneSelect" onchange="changeRingtone()" style="padding: 8px; font-size: 13px; margin-bottom: 8px;">
+                <label style="color: #25D366; font-size: 13px; font-weight: bold; display: block; margin-bottom: 8px;">🎵 Custom Ringtone / Caller Tune</label>
+                <select id="ringtoneSelect" onchange="changeRingtone()">
                     <option value="https://assets.mixkit.co/active_storage/sfx/2873/2873-preview.mp3">Classic Digital Ring</option>
                     <option value="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3">Soft Marimba</option>
                     <option value="https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3">Melodic Chime</option>
                     <option value="custom">📁 Upload Custom MP3...</option>
                 </select>
                 <input type="file" id="customAudioInput" accept="audio/*" style="display: none;" onchange="uploadCustomRingtone(event)">
-                <button onclick="previewRingtone()" id="previewBtn" style="background: #2a3942; color: #e9edef; padding: 7px; font-size: 12px;">▶️ Test Ringtone</button>
+                <button onclick="previewRingtone()" id="previewBtn" style="background: #2a3942; color: #e9edef; padding: 9px; font-size: 13px;">▶️ Test Ringtone</button>
             </div>
 
-            <ul class="user-list" id="usersList"></ul>
-            <button onclick="logout()" style="background: #202c33; color: #ef4444; margin-top: 15px; font-size: 13px;">Switch User / Log Out</button>
+            <button onclick="logout()" style="background: #202c33; color: #ef4444; border: 1px solid #ef4444; margin-top: 10px;">Switch User / Log Out</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 3: PERSISTENT 1-TO-1 CHAT SCREEN -->
+    <div id="direct-chat-screen" class="screen">
+        <div class="chat-top-bar">
+            <div style="display:flex; align-items:center;">
+                <button class="chat-back-btn" onclick="closeDirectChat()">←</button>
+                <div class="avatar-circle" style="width:38px; height:38px; font-size:16px; margin-right:10px;">👤</div>
+                <div>
+                    <b id="directChatPartnerName" style="font-size:15px; display:block;">Contact</b>
+                    <small id="directChatPartnerStatus" style="color:#00a884; font-size:11px;">Online</small>
+                </div>
+            </div>
+            <div class="call-actions">
+                <button class="btn-icon-action" onclick="callCurrentChatPartner(true)">📞</button>
+                <button class="btn-icon-action" onclick="callCurrentChatPartner(false)">📹</button>
+            </div>
+        </div>
+        <div id="direct-chat-messages"></div>
+        <div class="direct-input-bar">
+            <input type="text" id="directChatInput" placeholder="Message" onkeypress="handleDirectChatEnter(event)">
+            <button onclick="sendDirectMessage()">➤</button>
         </div>
     </div>
 
@@ -142,17 +208,13 @@
     <audio id="ringtone" loop src="https://assets.mixkit.co/active_storage/sfx/2873/2873-preview.mp3" preload="auto"></audio>
     <audio id="ringback" loop src="https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3" preload="auto"></audio>
 
-    <!-- SCREEN 3: CALL SCREEN -->
+    <!-- SCREEN 4: ACTIVE CALL SCREEN -->
     <div id="call-screen" class="screen">
-        
         <div id="call-header">
             <div id="callStatus">Calling...</div>
             <div id="callTimer">00:00</div>
             <div id="audioOutputBadge">🔊 Speakerphone</div>
         </div>
-
-        <!-- Floating Notification Toast for Closed Chat -->
-        <div id="chat-toast" onclick="toggleChat()">💬 New message</div>
 
         <div id="video-container">
             <div id="audio-avatar">👤</div>
@@ -160,7 +222,6 @@
             <video id="localVideo" autoplay playsinline muted></video>
         </div>
 
-        <!-- In-Call Chat Overlay -->
         <div id="chat-overlay">
             <div id="chat-header">
                 <span>In-Call Chat</span>
@@ -188,7 +249,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, addDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, query, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCeGrH0Y_uWJQgkEqSZCme3jzRQooc_jU4",
@@ -199,6 +260,39 @@
             appId: "1:907162619235:web:0527ae164861e2e8cd5756",
             measurementId: "G-BV91TFC8W1"
         };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let pc = null;
+        let localStream = null;
+        let currentCallId = null;
+        let presenceInterval = null;
+        const addedCandidates = new Set();
+        
+        let isMuted = false;
+        let isVideoOff = false;
+        let currentFacingMode = "user";
+        let isAudioOnlyMode = false;
+        let isSpeakerOn = true;
+
+        let callStartTime = null;
+        let timerInterval = null;
+        let chatChannel = null;
+        let incomingCallTypeMemory = false;
+        let incomingCallerMemory = "";
+        let unreadMessages = 0;
+        let toastTimeout = null;
+
+        // Direct Chat State
+        let activeChatPartner = null;
+        let directChatUnsub = null;
+
+        // Keep-Alive & Audio Context
+        let audioCtx = null;
+        let keepAliveOsc = null;
+        let wakeLock = null;
 
         function getTurnConfig() {
             const forceRelay = document.getElementById("relayToggle").checked;
@@ -211,38 +305,9 @@
             };
         }
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        let currentUser = null;
-        let pc;
-        let localStream;
-        let currentCallId = null;
-        let presenceInterval;
-        const addedCandidates = new Set();
-        
-        let isMuted = false;
-        let isVideoOff = false;
-        let currentFacingMode = "user";
-        let isAudioOnlyMode = false;
-        let isSpeakerOn = true;
-        
-        // Timer & Chat Variables
-        let callStartTime = null;
-        let timerInterval = null;
-        let chatChannel = null;
-        let incomingCallTypeMemory = false;
-        let unreadMessages = 0;
-        let toastTimeout = null;
-
-        // Audio Context for Keep-Alive, Speaker Gain & Chat Notification Chime
-        let audioCtx = null;
-        let keepAliveOsc = null;
-        let remoteGainNode = null;
-        let wakeLock = null;
-
         window.onload = () => {
             loadSavedRingtone();
+            renderCallLogs();
             const savedName = localStorage.getItem("familyCallUsername");
             if (savedName) {
                 document.getElementById("usernameInput").value = savedName;
@@ -250,7 +315,62 @@
             }
         };
 
-        // 1. CUSTOM RINGTONE FUNCTIONS
+        // TAB NAVIGATION
+        window.switchTab = (tabName) => {
+            ["chats", "calls", "settings"].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.toggle("active-view", t === tabName);
+                document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle("active-tab", t === tabName);
+            });
+            if (tabName === "calls") renderCallLogs();
+        };
+
+        // CALL HISTORY LOGS
+        function addCallLog(partner, type, direction) {
+            const logs = JSON.parse(localStorage.getItem("familyCallLogs") || "[]");
+            logs.unshift({
+                partner,
+                type,
+                direction,
+                time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + " · " + new Date().toLocaleDateString()
+            });
+            localStorage.setItem("familyCallLogs", JSON.stringify(logs.slice(0, 40)));
+            renderCallLogs();
+        }
+
+        function renderCallLogs() {
+            const list = document.getElementById("callLogsList");
+            if (!list) return;
+            const logs = JSON.parse(localStorage.getItem("familyCallLogs") || "[]");
+            if (logs.length === 0) {
+                list.innerHTML = `<li style="text-align:center; color:#8696a0; padding:30px; font-size:13px;">No call history yet</li>`;
+                return;
+            }
+            list.innerHTML = logs.map(log => {
+                const arrowColor = log.direction === "Missed" ? "#ef4444" : "#00a884";
+                const arrowSymbol = log.direction === "Outgoing" ? "↗" : (log.direction === "Missed" ? "↙" : "↙");
+                const isAudio = log.type === "Audio";
+                return `
+                    <li class="user-item">
+                        <div class="user-info">
+                            <div class="avatar-circle">👤</div>
+                            <div>
+                                <b style="font-size:15px; color:${log.direction === 'Missed' ? '#ef4444' : '#e9edef'};">${log.partner}</b>
+                                <small style="display:block; color:#8696a0; font-size:11px; margin-top:3px;">
+                                    <span style="color:${arrowColor}; font-weight:bold;">${arrowSymbol} ${log.direction}</span> · ${log.time}
+                                </small>
+                            </div>
+                        </div>
+                        <button class="btn-icon-action" onclick="initiateCall('${log.partner.toLowerCase()}', ${isAudio})">${isAudio ? "📞" : "📹"}</button>
+                    </li>`;
+            }).join("");
+        }
+
+        window.clearCallLogs = () => {
+            localStorage.removeItem("familyCallLogs");
+            renderCallLogs();
+        };
+
+        // RINGTONE SETUP
         function loadSavedRingtone() {
             const savedType = localStorage.getItem("familyCallRingtoneType");
             const savedCustomData = localStorage.getItem("familyCallCustomAudio");
@@ -268,13 +388,10 @@
 
         window.changeRingtone = () => {
             const selected = document.getElementById("ringtoneSelect").value;
-            const fileInput = document.getElementById("customAudioInput");
-            const ringtoneEl = document.getElementById("ringtone");
-
             if (selected === "custom") {
-                fileInput.click();
+                document.getElementById("customAudioInput").click();
             } else {
-                ringtoneEl.src = selected;
+                document.getElementById("ringtone").src = selected;
                 localStorage.setItem("familyCallRingtoneType", selected);
             }
         };
@@ -282,10 +399,7 @@
         window.uploadCustomRingtone = (event) => {
             const file = event.target.files[0];
             if (!file) return;
-            if (file.size > 3.5 * 1024 * 1024) {
-                alert("Please choose an audio file smaller than 3.5 MB.");
-                return;
-            }
+            if (file.size > 3.5 * 1024 * 1024) return alert("Please choose an audio file under 3.5 MB.");
             const reader = new FileReader();
             reader.onload = (e) => {
                 const base64Audio = e.target.result;
@@ -301,7 +415,7 @@
             const ringtone = document.getElementById("ringtone");
             const btn = document.getElementById("previewBtn");
             if (ringtone.paused) {
-                ringtone.play().catch(e => console.log("Preview blocked:", e));
+                ringtone.play().catch(() => {});
                 btn.innerText = "⏹️ Stop Test";
             } else {
                 ringtone.pause();
@@ -310,7 +424,7 @@
             }
         };
 
-        // 2. BACKGROUND KEEP-ALIVE & WAKE LOCK
+        // BACKGROUND PROTECTION
         async function enableBackgroundProtection() {
             try {
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -319,23 +433,19 @@
                 if (!keepAliveOsc && document.getElementById("keepAliveToggle").checked) {
                     keepAliveOsc = audioCtx.createOscillator();
                     const silentGain = audioCtx.createGain();
-                    silentGain.gain.value = 0.0001; // Virtually inaudible, keeps WebView alive in background
+                    silentGain.gain.value = 0.0001;
                     keepAliveOsc.connect(silentGain);
                     silentGain.connect(audioCtx.destination);
                     keepAliveOsc.start();
                 }
-
                 if ("wakeLock" in navigator && !wakeLock) {
                     wakeLock = await navigator.wakeLock.request("screen").catch(() => null);
                 }
-            } catch (e) {
-                console.log("Background keep-alive init:", e);
-            }
+            } catch (e) {}
         }
 
         window.toggleKeepAlive = () => {
-            const enabled = document.getElementById("keepAliveToggle").checked;
-            if (enabled) {
+            if (document.getElementById("keepAliveToggle").checked) {
                 enableBackgroundProtection();
             } else if (keepAliveOsc) {
                 keepAliveOsc.stop();
@@ -344,7 +454,7 @@
             }
         };
 
-        // 3. LOGIN & PRESENCE (Shows Online + Backgrounded Users)
+        // LOGIN & PRESENCE
         window.login = async () => {
             const name = document.getElementById("usernameInput").value.trim();
             if (!name) return alert("Please enter your name");
@@ -356,10 +466,7 @@
             document.getElementById("login-screen").classList.remove("active");
             document.getElementById("contacts-screen").classList.add("active");
 
-            if ("Notification" in window) {
-                Notification.requestPermission();
-            }
-
+            if ("Notification" in window) Notification.requestPermission();
             enableBackgroundProtection();
 
             const userRef = doc(db, "users", currentUser);
@@ -374,14 +481,12 @@
 
             listenForUsers();
             listenForIncomingCalls();
+            listenForDirectChatAlerts();
         };
 
         document.addEventListener("visibilitychange", () => {
             if (currentUser) {
-                setDoc(doc(db, "users", currentUser), {
-                    isOnline: !document.hidden,
-                    lastSeen: serverTimestamp()
-                }, { merge: true });
+                setDoc(doc(db, "users", currentUser), { isOnline: !document.hidden, lastSeen: serverTimestamp() }, { merge: true });
             }
             const remoteVideo = document.getElementById("remoteVideo");
             if (document.hidden && currentCallId && !isAudioOnlyMode && typeof remoteVideo.requestPictureInPicture === "function") {
@@ -395,7 +500,136 @@
             window.location.reload(); 
         };
 
-        // 4. SPEAKER VS EARPIECE SWITCH
+        // CONTACTS LISTENER
+        function listenForUsers() {
+            onSnapshot(collection(db, "users"), (snapshot) => {
+                const list = document.getElementById("usersList");
+                list.innerHTML = "";
+                snapshot.forEach((docSnap) => {
+                    const user = docSnap.data();
+                    if (docSnap.id !== currentUser) {
+                        const dotColor = user.isOnline ? "#00a884" : "#64748b";
+                        const statusText = user.isOnline ? "Online · Tap to chat" : "Standby · Tap to chat";
+                        list.innerHTML += `
+                            <li class="user-item">
+                                <div class="user-info" onclick="openDirectChat('${docSnap.id}', '${user.name}', ${Boolean(user.isOnline)})">
+                                    <div class="avatar-circle">👤</div>
+                                    <div>
+                                        <b style="font-size: 15px;">${user.name}</b>
+                                        <small style="color:#8696a0; display:block; font-size:11px; margin-top: 3px;">
+                                            <span class="online-dot" style="background-color: ${dotColor};"></span>${statusText}
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="call-actions">
+                                    <button class="btn-icon-action" title="Chat" onclick="openDirectChat('${docSnap.id}', '${user.name}', ${Boolean(user.isOnline)})">💬</button>
+                                    <button class="btn-icon-action" title="Voice Call" onclick="initiateCall('${docSnap.id}', true)">📞</button>
+                                    <button class="btn-icon-action" title="Video Call" onclick="initiateCall('${docSnap.id}', false)">📹</button>
+                                </div>
+                            </li>`;
+                    }
+                });
+            });
+        }
+
+        // PERSISTENT 1-TO-1 FIRESTORE CHAT
+        function getRoomId(u1, u2) {
+            return [u1, u2].sort().join("_");
+        }
+
+        window.openDirectChat = (partnerId, partnerName, isOnline) => {
+            activeChatPartner = partnerId;
+            document.getElementById("directChatPartnerName").innerText = partnerName;
+            document.getElementById("directChatPartnerStatus").innerText = isOnline ? "Online" : "Standby";
+            document.getElementById("contacts-screen").classList.remove("active");
+            document.getElementById("direct-chat-screen").classList.add("active");
+
+            const roomId = getRoomId(currentUser, partnerId);
+            const msgsQuery = query(collection(db, "chats", roomId, "messages"), orderBy("createdAt", "asc"));
+
+            if (directChatUnsub) directChatUnsub();
+            directChatUnsub = onSnapshot(msgsQuery, (snapshot) => {
+                const box = document.getElementById("direct-chat-messages");
+                box.innerHTML = "";
+                snapshot.forEach(docSnap => {
+                    const m = docSnap.data();
+                    const div = document.createElement("div");
+                    div.className = `msg-bubble ${m.sender === currentUser ? "msg-sent" : "msg-recv"}`;
+                    div.innerHTML = `${m.text}<span class="msg-time">${m.timeString || ""}</span>`;
+                    box.appendChild(div);
+                });
+                box.scrollTop = box.scrollHeight;
+            });
+        };
+
+        window.closeDirectChat = () => {
+            activeChatPartner = null;
+            if (directChatUnsub) { directChatUnsub(); directChatUnsub = null; }
+            document.getElementById("direct-chat-screen").classList.remove("active");
+            document.getElementById("contacts-screen").classList.add("active");
+        };
+
+        window.callCurrentChatPartner = (audioOnly) => {
+            if (!activeChatPartner) return;
+            const target = activeChatPartner;
+            closeDirectChat();
+            initiateCall(target, audioOnly);
+        };
+
+        window.sendDirectMessage = async () => {
+            const input = document.getElementById("directChatInput");
+            const text = input.value.trim();
+            if (!text || !activeChatPartner) return;
+            input.value = "";
+
+            const roomId = getRoomId(currentUser, activeChatPartner);
+            const timeString = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+            await addDoc(collection(db, "chats", roomId, "messages"), {
+                sender: currentUser,
+                text: text,
+                timeString: timeString,
+                createdAt: serverTimestamp()
+            });
+
+            await updateDoc(doc(db, "users", activeChatPartner), {
+                latestMessageAlert: { from: currentUser, text: text, timestamp: Date.now() }
+            }).catch(() => {});
+        };
+
+        window.handleDirectChatEnter = (e) => { if (e.key === "Enter") sendDirectMessage(); };
+
+        function listenForDirectChatAlerts() {
+            let initialLoad = true;
+            onSnapshot(doc(db, "users", currentUser), (docSnap) => {
+                const data = docSnap.data();
+                if (initialLoad) { initialLoad = false; return; }
+                if (data && data.latestMessageAlert && activeChatPartner !== data.latestMessageAlert.from) {
+                    const alertData = data.latestMessageAlert;
+                    playChatNotificationSound();
+                    showToast(`💬 ${alertData.from}: "${alertData.text}"`, () => {
+                        openDirectChat(alertData.from, alertData.from, true);
+                    });
+                    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+                        new Notification(`Message from ${alertData.from}`, { body: alertData.text });
+                    }
+                }
+            });
+        }
+
+        function showToast(text, onClickAction) {
+            const toast = document.getElementById("chat-toast");
+            toast.innerText = text;
+            toast.style.display = "block";
+            toast.onclick = () => {
+                toast.style.display = "none";
+                if (onClickAction) onClickAction();
+            };
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { toast.style.display = "none"; }, 4500);
+        }
+
+        // HARDWARE SPEAKER VS EARPIECE ROUTING
         window.toggleSpeaker = async () => {
             isSpeakerOn = !isSpeakerOn;
             await applyAudioRouting();
@@ -408,31 +642,17 @@
 
             speakerBtn.innerText = isSpeakerOn ? "🔊" : "👂";
             speakerBtn.classList.toggle("btn-speaker-active", isSpeakerOn);
-            badge.innerText = isSpeakerOn ? "🔊 Speakerphone Mode" : "👂 Earpiece (Quiet) Mode";
+            badge.innerText = isSpeakerOn ? "🔊 Speakerphone Mode" : "👂 Earpiece Mode";
 
-            // 1. Hardware Sink Routing (if supported by mobile WebView)
-            if (typeof remoteVideo.setSinkId === "function" && navigator.mediaDevices?.enumerateDevices) {
-                try {
-                    const devices = await navigator.mediaDevices.enumerateDevices();
-                    const audioOutputs = devices.filter(d => d.kind === "audiooutput");
-                    if (audioOutputs.length > 1) {
-                        const target = audioOutputs.find(d =>
-                            isSpeakerOn
-                                ? d.label.toLowerCase().includes("speaker")
-                                : (d.label.toLowerCase().includes("earpiece") || d.label.toLowerCase().includes("receiver") || d.deviceId === "default")
-                        );
-                        if (target) await remoteVideo.setSinkId(target.deviceId);
-                    }
-                } catch (e) {
-                    console.log("setSinkId fallback:", e);
-                }
+            if (window.AndroidAudio && typeof window.AndroidAudio.setSpeakerphone === "function") {
+                window.AndroidAudio.setSpeakerphone(isSpeakerOn);
+                remoteVideo.volume = 1.0;
+                return;
             }
-
-            // 2. Volume & Acoustic Gain Adjustment for Earpiece vs Speaker
             remoteVideo.volume = isSpeakerOn ? 1.0 : 0.28;
         }
 
-        // 5. MUTE, VIDEO & CAMERA SWITCH
+        // MUTE, VIDEO & CAMERA CONTROLS
         window.toggleMute = () => {
             if (!localStream) return;
             const audioTrack = localStream.getAudioTracks()[0];
@@ -481,58 +701,27 @@
             }
         };
 
-        // 6. CONTACT LIST (All Registered Family Members Visible)
-        function listenForUsers() {
-            const usersRef = collection(db, "users");
-            onSnapshot(usersRef, (snapshot) => {
-                const list = document.getElementById("usersList");
-                list.innerHTML = "";
-                snapshot.forEach((docSnap) => {
-                    const user = docSnap.data();
-                    if (docSnap.id !== currentUser) {
-                        const dotColor = user.isOnline ? "#00a884" : "#64748b";
-                        const statusText = user.isOnline ? "Online" : "Background / Standby";
-                        list.innerHTML += `
-                            <li class="user-item">
-                                <div style="display:flex; align-items:center;">
-                                    <div style="width: 42px; height: 42px; border-radius: 50%; background: #202c33; display:flex; justify-content:center; align-items:center; font-size:20px; margin-right: 12px;">👤</div>
-                                    <div>
-                                        <b style="font-size: 15px;">${user.name}</b>
-                                        <small style="color:#8696a0; display:block; font-size:11px; margin-top: 2px;">
-                                            <span class="online-dot" style="background-color: ${dotColor};"></span>${statusText}
-                                        </small>
-                                    </div>
-                                </div>
-                                <div class="call-actions">
-                                    <button class="btn-icon-action" title="Voice Call" onclick="initiateCall('${docSnap.id}', true)">📞</button>
-                                    <button class="btn-icon-action" title="Video Call" onclick="initiateCall('${docSnap.id}', false)">📹</button>
-                                </div>
-                            </li>`;
-                    }
-                });
-            });
-        }
-
+        // INCOMING CALLS
         function listenForIncomingCalls() {
-            const myUserRef = doc(db, "users", currentUser);
-            onSnapshot(myUserRef, (docSnap) => {
+            onSnapshot(doc(db, "users", currentUser), (docSnap) => {
                 const data = docSnap.data();
                 const ringtone = document.getElementById("ringtone");
                 
                 if (data && data.incomingCall) {
                     currentCallId = data.incomingCall.callId;
                     incomingCallTypeMemory = Boolean(data.incomingCall.isAudioOnly);
+                    incomingCallerMemory = data.incomingCall.callerName;
                     
                     document.getElementById("incoming-type-text").innerText = incomingCallTypeMemory ? "📞 Incoming Voice Call" : "📹 Incoming Video Call";
-                    document.getElementById("caller-name").innerText = `${data.incomingCall.callerName} is calling...`;
+                    document.getElementById("caller-name").innerText = `${incomingCallerMemory} is calling...`;
                     document.getElementById("incoming-alert").style.display = "block";
                     
-                    ringtone.play().catch(e => console.log("Ringtone blocked:", e));
+                    ringtone.play().catch(() => {});
                     if (navigator.vibrate) navigator.vibrate([500, 300, 500, 300, 500]);
 
                     if ("Notification" in window && Notification.permission === "granted") {
                         new Notification(incomingCallTypeMemory ? "Incoming Voice Call 📞" : "Incoming Video Call 📹", {
-                            body: `${data.incomingCall.callerName} is calling you on Family Link!`,
+                            body: `${incomingCallerMemory} is calling you on Family Link!`,
                             requireInteraction: true
                         });
                     }
@@ -544,12 +733,13 @@
             });
         }
 
-        // 7. INITIATE & ACCEPT CALLS
+        // CALL INITIATION & ACCEPTANCE
         window.initiateCall = async (targetUserId, audioOnly) => {
             isAudioOnlyMode = audioOnly;
-            isSpeakerOn = !audioOnly; // Audio calls default to Earpiece (false), Video calls default to Speaker (true)
+            isSpeakerOn = !audioOnly;
             currentCallId = `${currentUser}_${targetUserId}_${Date.now()}`;
             addedCandidates.clear();
+            addCallLog(targetUserId, audioOnly ? "Audio" : "Video", "Outgoing");
             setupCallScreenUI();
 
             document.getElementById("callStatus").innerText = `Calling ${targetUserId}...`;
@@ -624,7 +814,8 @@
 
         window.acceptCall = async () => {
             isAudioOnlyMode = incomingCallTypeMemory;
-            isSpeakerOn = !isAudioOnlyMode; // Voice call starts on Earpiece, Video call starts on Speaker
+            isSpeakerOn = !isAudioOnlyMode;
+            addCallLog(incomingCallerMemory || "Family", isAudioOnlyMode ? "Audio" : "Video", "Incoming");
             document.getElementById("incoming-alert").style.display = "none";
             document.getElementById("ringtone").pause();
             document.getElementById("ringtone").currentTime = 0;
@@ -693,6 +884,7 @@
 
         function setupCallScreenUI() {
             document.getElementById("contacts-screen").classList.remove("active");
+            document.getElementById("direct-chat-screen").classList.remove("active");
             document.getElementById("call-screen").classList.add("active");
             
             if (isAudioOnlyMode) {
@@ -734,9 +926,7 @@
                 if (!parameters.encodings || parameters.encodings.length === 0) parameters.encodings = [{}];
                 parameters.encodings[0].maxBitrate = 250000;
                 await videoSender.setParameters(parameters);
-            } catch (e) {
-                console.log("Bitrate cap unsupported:", e);
-            }
+            } catch (e) {}
         }
 
         function startCallTimer() {
@@ -751,7 +941,7 @@
             }, 1000);
         }
 
-        // 8. CHAT OVERLAY & MESSAGE NOTIFICATIONS
+        // IN-CALL DATA CHANNEL CHAT
         function playChatNotificationSound() {
             try {
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -773,7 +963,6 @@
             const chatOverlay = document.getElementById("chat-overlay");
             const isOpening = chatOverlay.style.display !== "flex";
             chatOverlay.style.display = isOpening ? "flex" : "none";
-
             if (isOpening) {
                 unreadMessages = 0;
                 document.getElementById("chatBadge").style.display = "none";
@@ -788,23 +977,12 @@
                 playChatNotificationSound();
 
                 const chatOverlay = document.getElementById("chat-overlay");
-                const isChatOpen = chatOverlay.style.display === "flex";
-
-                if (!isChatOpen) {
+                if (chatOverlay.style.display !== "flex") {
                     unreadMessages++;
                     const badge = document.getElementById("chatBadge");
                     badge.innerText = unreadMessages;
                     badge.style.display = "flex";
-
-                    const toast = document.getElementById("chat-toast");
-                    toast.innerText = `💬 New message: "${msg}"`;
-                    toast.style.display = "block";
-                    clearTimeout(toastTimeout);
-                    toastTimeout = setTimeout(() => { toast.style.display = "none"; }, 4000);
-                }
-
-                if (document.hidden && "Notification" in window && Notification.permission === "granted") {
-                    new Notification("New In-Call Message 💬", { body: msg });
+                    showToast(`💬 In-Call: "${msg}"`, () => toggleChat());
                 }
             };
         }
@@ -813,7 +991,6 @@
             const input = document.getElementById("chatInput");
             const msg = input.value.trim();
             if (!msg || !chatChannel || chatChannel.readyState !== "open") return;
-            
             chatChannel.send(msg);
             appendMessage(msg, "msg-sent");
             input.value = "";
@@ -830,8 +1007,9 @@
             msgBox.scrollTop = msgBox.scrollHeight;
         }
 
-        // 9. CALL TERMINATION
+        // CALL TERMINATION
         window.rejectCall = async () => {
+            addCallLog(incomingCallerMemory || "Family", incomingCallTypeMemory ? "Audio" : "Video", "Missed");
             await updateDoc(doc(db, "users", currentUser), { incomingCall: null });
             document.getElementById("incoming-alert").style.display = "none";
             document.getElementById("ringtone").pause();
@@ -850,6 +1028,9 @@
         function endCallLocally() {
             clearInterval(timerInterval);
             document.getElementById("ringback").pause();
+            if (window.AndroidAudio && typeof window.AndroidAudio.resetAudio === "function") {
+                window.AndroidAudio.resetAudio();
+            }
             if (localStream) localStream.getTracks().forEach(t => t.stop());
             if (pc) pc.close();
             window.location.reload();
